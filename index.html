@@ -117,7 +117,6 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 .diffBtn[aria-pressed="true"]{border-color:var(--yel);background:rgba(246,196,0,.14)}
 .modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .modes button{min-width:0}
-.modes .primary{grid-column:1/-1}
 .ladder{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .ladder li{display:flex;align-items:center;gap:12px;padding:8px 12px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
 .ladder li .ln{font:800 18px/1 var(--display);letter-spacing:.03em;min-width:7.5em}
@@ -158,6 +157,35 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 .appfoot b{color:var(--text);font-weight:700;font-variant-numeric:tabular-nums}
 .updBtn{background:transparent;color:var(--text);border:1px solid var(--line);font:700 15px var(--display);letter-spacing:.06em;text-transform:uppercase;padding:8px 14px}
 .updBtn:hover{border-color:var(--sky)}
+.lenPick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;max-width:520px}
+.lgNext{display:flex;flex-direction:column;gap:14px;background:var(--panel);border:1px solid var(--line);padding:18px}
+.lgVs{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
+.lgVs .tm{display:flex;flex-direction:column;align-items:center;gap:6px;font:800 22px/1 var(--display);letter-spacing:.04em;text-align:center;min-width:0}
+.lgVs canvas{width:52px;height:60px}
+.lgVs .v{font:800 18px var(--display);color:var(--muted)}
+.lgVs.me .tm.mine{color:var(--yel)}
+.lgNext p{margin:0;color:var(--muted);text-align:center}
+.lgCols{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:760px){.lgCols{grid-template-columns:minmax(0,1fr)}}
+.lgSide{display:flex;flex-direction:column;gap:18px;min-width:0}
+.tblWrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font:600 16px var(--body);font-variant-numeric:tabular-nums}
+.tbl th{font:700 12px var(--body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:right;padding:6px 6px;border-bottom:1px solid var(--line)}
+.tbl td{padding:8px 6px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th:nth-child(2),.tbl td:nth-child(2){text-align:left}
+.tbl td:first-child{color:var(--muted);width:1.5em}
+.tbl td.p{font:800 18px var(--display)}
+.tbl tr.me td{background:rgba(246,196,0,.12)}
+.tbl tr.me td:nth-child(2){color:var(--yel)}
+.tbl tr.cut td{border-bottom:2px dashed var(--sky)}
+.tnm{display:flex;align-items:center;gap:8px;font:800 17px/1 var(--display);letter-spacing:.03em;white-space:nowrap}
+.sw{width:12px;height:12px;border-radius:2px;flex:none;box-shadow:0 0 0 1px rgba(255,255,255,.3)}
+.results{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.results li{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;padding:7px 10px;background:rgba(255,255,255,.04);border:1px solid var(--line);font:700 15px var(--display);letter-spacing:.03em}
+.results li .a{text-align:right}.results li .sc{font:800 18px var(--display);font-variant-numeric:tabular-nums;color:var(--yel);min-width:3.2em;text-align:center}
+.results li.me{border-color:var(--yel)}
+.bracket{display:flex;flex-direction:column;gap:6px}
+.bracket .lbl{font:700 12px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--sky);margin-top:4px}
 @media (max-width:560px){.card{width:200px;padding:20px 16px 30px;gap:6px}.rating{font-size:46px}.ctop canvas{width:46px;height:53px}.bignum{font-size:66px}.nm{font-size:23px}.stats{font-size:15px}.brand h1{font-size:44px}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
@@ -216,6 +244,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
         <div class="grp"><div class="eyebrow">Svårighet</div><div class="diffPick" id="diffPick"></div></div>
         <div class="modes">
           <button id="bMatch" class="primary" type="button">Spela match</button>
+          <button id="bLeague" class="primary" type="button">Serie</button>
           <button id="bCareer" class="ghost" type="button">Straffkarriär</button>
           <button id="bTrain" class="ghost" type="button">Träna</button>
         </div>
@@ -232,6 +261,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
           <summary>Så spelar du</summary>
           <h3>Match</h3>
           <ul>
+            <li><b>Serie</b>: sex lag möter alla en gång. Topp fyra går till semifinal och sedan final. Tabellen sparas mellan gångerna.</li>
             <li><b>Spaken</b> styr spelaren med den gula pilen. Uppåt är mot motståndarnas mål.</li>
             <li><b>SKJUT</b>: håll för att ladda, styr siktet i målet, släpp för skott.</li>
             <li><b>TACKLA</b> (samma knapp när du inte har bollen): peta bort bollen när du är nära.</li>
@@ -260,11 +290,29 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 <section id="setup" class="screen" hidden>
   <div class="wrap">
     <div class="brand">
-      <div class="eyebrow">Match · 3 mot 3 · 3 perioder à 2 minuter</div>
+      <div class="eyebrow" id="setupInfo">Match · 3 mot 3</div>
       <h2>Välj motståndare</h2>
     </div>
+    <div class="grp"><div class="eyebrow">Periodlängd · 3 perioder</div><div class="lenPick"></div></div>
     <div class="oppGrid" id="oppGrid"></div>
     <div class="row"><button id="bSetupBack" class="ghost" type="button">Tillbaka</button></div>
+    <footer class="appfoot"><span>Version <b class="appver"></b></span><button type="button" class="updBtn">Uppdatera appen</button></footer>
+  </div>
+</section>
+
+<section id="league" class="screen" hidden>
+  <div class="wrap">
+    <div class="brand"><div class="eyebrow" id="lgEyebrow"></div><h2 id="lgTitle">Serien</h2></div>
+    <div class="lgNext" id="lgNext"></div>
+    <div class="lgCols">
+      <div class="grp"><div class="eyebrow">Tabell · topp 4 till slutspel</div><div class="tblWrap"><table class="tbl" id="lgTable"></table></div></div>
+      <div class="lgSide">
+        <div class="grp" id="lgPoWrap"><div class="eyebrow">Slutspel</div><div id="lgPlayoff" class="bracket"></div></div>
+        <div class="grp" id="lgResWrap"><div class="eyebrow" id="lgResHead">Senaste omgången</div><ul class="results" id="lgResults"></ul></div>
+      </div>
+    </div>
+    <div class="grp"><div class="eyebrow">Periodlängd · 3 perioder</div><div class="lenPick"></div></div>
+    <div class="row"><button id="bLgBack" class="ghost" type="button">Meny</button><button id="bLgNew" class="ghost" type="button">Ny säsong</button></div>
     <footer class="appfoot"><span>Version <b class="appver"></b></span><button type="button" class="updBtn">Uppdatera appen</button></footer>
   </div>
 </section>
@@ -284,7 +332,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 <script>
 (()=>{
 'use strict';
-const APP_VERSION='2.4';
+const APP_VERSION='2.5';
 const $=s=>document.querySelector(s);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const lerp=(a,b,t)=>a+(b-a)*t;
@@ -333,7 +381,7 @@ const LEVELS=[
 function gkParams(s){return{delay:.27-.13*s,speed:2+1.6*s,lean:2.6+2.6*s,read:.3-.2*s,tau:.42-.26*s};}
 
 /* ---------- Save ---------- */
-let save={name:'LUKAS',num:10,level:0,goals:0,shots:0,titles:0,team:'diffen',w:0,d:0,l:0,mgoals:0,diff:'medel'};
+let save={name:'LUKAS',num:10,level:0,goals:0,shots:0,titles:0,team:'diffen',w:0,d:0,l:0,mgoals:0,diff:'medel',plen:120,league:null,lgTitles:0};
 try{const s=JSON.parse(localStorage.getItem('diffen-straffar')||'null');if(s&&typeof s==='object')Object.assign(save,s);}catch(e){}
 if(!TEAMS[save.team]||(save.team!=='diffen'&&save.team!=='fbc'))save.team='diffen';
 function persist(){try{localStorage.setItem('diffen-straffar',JSON.stringify(save));}catch(e){}}
@@ -498,7 +546,7 @@ function syncControls(){
     :'<b>Pilar</b> åk · <b>Mellanslag</b> håll = ladda och sikta · <b>F</b> fint · <b>Z</b> zorro';
   if(game.mode!=='match'){$('#bFint').textContent='FINT';$('#bShootTxt').textContent='SKJUT';$('#bZorro').classList.remove('off');$('#bFint').classList.remove('off');}
 }
-function hideScreens(){$('#menu').hidden=true;$('#end').hidden=true;$('#setup').hidden=true;}
+function hideScreens(){$('#menu').hidden=true;$('#end').hidden=true;$('#setup').hidden=true;$('#league').hidden=true;}
 function startSeries(training){
   initAudio();
   game.level=save.level;game.training=training;game.shots=[];game.tGoals=0;game.tShots=0;game.last='straff';
@@ -520,7 +568,7 @@ function nextShot(){
 }
 function openMenu(){
   game.mode='menu';charging=false;msg=null;toast=null;particles=[];
-  nextIdle();refreshMenu();$('#end').hidden=true;$('#setup').hidden=true;$('#menu').hidden=false;syncControls();
+  nextIdle();refreshMenu();hideScreens();$('#menu').hidden=false;syncControls();
 }
 function nextIdle(){P.x=0;P.z=0;P.vx=0;P.vz=0;P.zorro=false;B.mode='dribble';B.inNet=false;G.x=0;G.z=16.15;G.state='set';G.down=0;G.lean=0;G.armUp=0;cam.z=-5.5;cam.y=2.6;game.level=save.level;}
 
@@ -733,8 +781,8 @@ function confetti(){
 /* =====================================================================
    MATCH MODE — 3 v 3 + goalkeepers. Team 0 = user, always attacks +z.
    ===================================================================== */
-const PERIOD=120, PERIODS=3;
-const M={tid:['diffen','fbc'],teams:[],score:[0,0],period:1,clock:PERIOD,state:'faceoff',kind:'',stateT:0,sk:[],gk:[],ball:null,ctrl:null,user:null,possTeam:-1,passTarget:null,passT:0,autoT:0,myGoals:0,lastLabel:''};
+const PERIODS=3, PLENS=[60,120,180,300];
+const M={tid:['diffen','fbc'],teams:[],score:[0,0],period:1,clock:120,plen:120,lg:false,po:false,state:'faceoff',kind:'',stateT:0,sk:[],gk:[],ball:null,ctrl:null,user:null,possTeam:-1,passTarget:null,passT:0,autoT:0,myGoals:0,lastLabel:''};
 const sp=o=>Math.hypot(o.vx,o.vz);
 const skillOf=t=>t===0?.6:M.teams[1].skill*(.55+.45*DE());
 function mkSk(t,role,name,num,kit,isUser){
@@ -752,12 +800,14 @@ function openSetup(){
     const c=btn.querySelector('canvas').getContext('2d');drawBadge(c,id,8,3,72);
     btn.addEventListener('click',()=>startMatch(id));grid.appendChild(btn);
   });
+  renderLen();
   $('#menu').hidden=true;$('#setup').hidden=false;
   const first=grid.querySelector('button');if(first)first.focus({preventScroll:true});
 }
-function startMatch(oppId){
-  initAudio();
-  M.tid=[save.team,oppId];M.teams=M.tid.map(id=>TEAMS[id]);M.score=[0,0];M.period=1;M.clock=PERIOD;M.myGoals=0;
+function startMatch(oppId,opts){
+  initAudio();opts=opts||{};
+  M.lg=!!opts.lg;M.po=!!opts.po;M.plen=save.plen||120;
+  M.tid=[opts.my||save.team,oppId];M.teams=M.tid.map(id=>TEAMS[id]);M.score=[0,0];M.period=1;M.clock=M.plen;M.myGoals=0;
   M.sk=[];
   for(let t=0;t<2;t++){const tm=M.teams[t];for(let i=0;i<3;i++){const u=t===0&&i===0;const [nm,no]=u?[save.name,save.num]:tm.players[i];M.sk.push(mkSk(t,['C','L','R'][i],nm,no,tm.kit,u));}}
   M.user=M.sk[0];M.ctrl=M.user;
@@ -777,12 +827,12 @@ function mFaceoff(){
   const b=M.ball;Object.assign(b,{x:0,y:R,z:0,vx:0,vy:0,vz:0,owner:null,holder:null,shot:null,inNet:null,lastTouch:null,passTo:null});
   M.ctrl=M.user;M.possTeam=-1;M.passTarget=null;charging=false;charge=0;
   M.state='faceoff';M.stateT=1.5;
-  msg={title:'TEKNING',sub:`Period ${M.period} · ${M.teams[0].name} ${M.score[0]}–${M.score[1]} ${M.teams[1].name}`,kind:'info',t:0,dur:1.4};
+  msg={title:'TEKNING',sub:`${M.period>PERIODS?'Förlängning':'Period '+M.period} · ${M.teams[0].name} ${M.score[0]}–${M.score[1]} ${M.teams[1].name}`,kind:'info',t:0,dur:1.4};
 }
 function updateMHud(force){
   const c=Math.ceil(M.clock),txt=`${Math.floor(c/60)}:${String(c%60).padStart(2,'0')}`;
   const key=M.score.join('-')+txt+M.period;if(!force&&key===M.lastHud)return;M.lastHud=key;
-  $('#ms0').textContent=M.score[0];$('#ms1').textContent=M.score[1];$('#mClock').textContent=txt;$('#mPer').textContent=`Period ${M.period}`;
+  $('#ms0').textContent=M.score[0];$('#ms1').textContent=M.score[1];$('#mClock').textContent=txt;$('#mPer').textContent=M.period>PERIODS?'Förläng.':`Period ${M.period}`;
 }
 
 /* --- player actions --- */
@@ -1136,7 +1186,7 @@ function mGoal(g){
   if(team===0){sfx.cheer();confetti();goalLight=2.8;msg={title:'MÅÅÅL!',sub:`${sub} · ${M.score[0]}–${M.score[1]}`,kind:'goal',t:0,dur:2.8};
     M.sk.forEach(s=>{if(s.team===0)s.celebrate=Math.max(s.celebrate,1.6);});}
   else{sfx.miss();msg={title:`MÅL ${M.teams[1].short}`,sub:`${sub} · ${M.score[0]}–${M.score[1]}`,kind:'miss',t:0,dur:2.8};}
-  M.state='pause';M.kind='goal';M.stateT=3;charging=false;charge=0;
+  M.state='pause';M.kind=M.period>PERIODS?'end':'goal';M.stateT=3;charging=false;charge=0;
   updateMHud(true);
 }
 function mUpdate(dt){
@@ -1144,13 +1194,16 @@ function mUpdate(dt){
   if(M.state==='faceoff'){M.stateT-=dt;if(M.stateT<=0){M.state='live';sfx.whistle();b.vx=(Math.random()-.5)*1.2;b.vz=(Math.random()-.5)*1.2;}}
   else if(M.state==='live'){
     M.clock-=dt;
-    if(M.clock<=0){M.clock=0;M.state='pause';M.kind=M.period<PERIODS?'period':'end';M.stateT=2.6;sfx.whistle();charging=false;charge=0;
-      msg={title:M.period<PERIODS?'PERIODSLUT':'SLUTSIGNAL',sub:`${M.teams[0].name} ${M.score[0]}–${M.score[1]} ${M.teams[1].name}`,kind:'info',t:0,dur:2.5};}
+    if(M.clock<=0){M.clock=0;M.state='pause';M.stateT=2.6;sfx.whistle();charging=false;charge=0;
+      const ot=M.period>=PERIODS&&M.po&&M.score[0]===M.score[1];
+      M.kind=ot?'ot':M.period<PERIODS?'period':'end';
+      msg=ot?{title:'FÖRLÄNGNING',sub:'Sudden death – nästa mål vinner',kind:'info',t:0,dur:2.5}
+        :{title:M.period<PERIODS?'PERIODSLUT':'SLUTSIGNAL',sub:`${M.teams[0].name} ${M.score[0]}–${M.score[1]} ${M.teams[1].name}`,kind:'info',t:0,dur:2.5};}
   }else{
     M.stateT-=dt;
     if(M.stateT<=0){
       if(M.kind==='goal')mFaceoff();
-      else if(M.kind==='period'){M.period++;M.clock=PERIOD;mFaceoff();}
+      else if(M.kind==='period'||M.kind==='ot'){M.period++;M.clock=M.plen;mFaceoff();}
       else return showMatchEnd();
     }
   }
@@ -1199,9 +1252,116 @@ function showMatchEnd(){
   $('#endDots').hidden=true;
   $('#endText').textContent=M.myGoals?`${save.name} gjorde ${M.myGoals} ${M.myGoals===1?'mål':'mål'}.`:(res==='w'?'Snyggt lagspel!':'Ny chans direkt – passa mer och skjut från nära håll.');
   $('#bNext').textContent='Spela igen';
+  if(M.lg){const info=leagueAfterMatch(a,c);$('#endEyebrow').textContent=info.eyebrow;if(info.title)$('#endTitle').textContent=info.title;$('#endText').textContent=info.text;$('#bNext').textContent='Till tabellen';if(info.gold){$('#endTitle').style.color='var(--yel)';}}
   if(res==='w'){confetti();sfx.cheer();}
   $('#end').hidden=false;syncControls();$('#bNext').focus({preventScroll:true});
 }
+
+/* ---------- League ---------- */
+const LG_TEAMS=['diffen','fbc','strom','hagaby','norrfors','vikbo'];
+function poisson(l){const L=Math.exp(-l);let k=0,p=1;do{k++;p*=Math.random();}while(p>L);return k-1;}
+function simGoals(a,b){const d=TEAMS[a].skill-TEAMS[b].skill;return[poisson(clamp(2.5+d*5,.5,5.5)),poisson(clamp(2.5-d*5,.5,5.5))];}
+function simKO(a,b){let[x,y]=simGoals(a,b);let ot=false;if(x===y){ot=true;if(Math.random()<.5+(TEAMS[a].skill-TEAMS[b].skill))x++;else y++;}return[x,y,ot];}
+function newLeague(){
+  const others=LG_TEAMS.filter(t=>t!==save.team).sort(()=>Math.random()-.5);
+  const arr=[save.team,...others],n=arr.length,rounds=[];
+  for(let r=0;r<n-1;r++){const pairs=[];for(let i=0;i<n/2;i++){let a=arr[i],b=arr[n-1-i];if((r+i)%2)[a,b]=[b,a];pairs.push([a,b]);}rounds.push(pairs);arr.splice(1,0,arr.pop());}
+  save.league={team:save.team,rounds,res:{},round:0,phase:'serie',po:null,champ:null,season:((save.league&&save.league.season)||0)+1};persist();
+}
+function lgTable(){
+  const L=save.league,rows={};LG_TEAMS.forEach(t=>rows[t]={t,m:0,v:0,o:0,f:0,gf:0,ga:0,p:0});
+  for(const k in L.res){const[a,b]=k.split('|'),[x,y]=L.res[k],A=rows[a],B=rows[b];
+    A.m++;B.m++;A.gf+=x;A.ga+=y;B.gf+=y;B.ga+=x;
+    if(x>y){A.v++;B.f++;A.p+=3;}else if(x<y){B.v++;A.f++;B.p+=3;}else{A.o++;B.o++;A.p++;B.p++;}}
+  return Object.values(rows).sort((x,y)=>y.p-x.p||(y.gf-y.ga)-(x.gf-x.ga)||y.gf-x.gf||TEAMS[y.t].skill-TEAMS[x.t].skill);
+}
+function lgUserGame(){
+  const L=save.league;if(!L)return null;
+  if(L.phase==='serie'){const pr=L.rounds[L.round].find(p=>p.includes(L.team));return{a:pr[0],b:pr[1],label:`Omgång ${L.round+1} av ${L.rounds.length}`};}
+  if(L.phase==='semi'){const sm=L.po.semi.find(m=>m[0]===L.team||m[1]===L.team);return{a:sm[0],b:sm[1],label:'Semifinal'};}
+  if(L.phase==='final'){const f=L.po.final;return{a:f[0],b:f[1],label:'Final'};}
+  return null;
+}
+function startPlayoffs(){
+  const L=save.league,t=lgTable().map(r=>r.t);
+  L.po={semi:[[t[0],t[3],null],[t[1],t[2],null]],final:null};
+  if(t.slice(0,4).includes(L.team)){L.phase='semi';return true;}
+  L.po.semi.forEach(m=>m[2]=simKO(m[0],m[1]));
+  const w=L.po.semi.map(m=>m[2][0]>m[2][1]?m[0]:m[1]);
+  L.po.final=[w[0],w[1],simKO(w[0],w[1])];L.champ=L.po.final[2][0]>L.po.final[2][1]?w[0]:w[1];L.phase='done';return false;
+}
+function leagueAfterMatch(my,op){
+  const L=save.league,g=lgUserGame(),me=L.team,mine=(g.a===me);
+  const x=mine?my:op,y=mine?op:my,nm=TEAMS[me].name;let eyebrow=`${g.label} · Säsong ${L.season}`,title=null,text='',gold=false;
+  if(L.phase==='serie'){
+    L.res[g.a+'|'+g.b]=[x,y];
+    for(const p of L.rounds[L.round])if(!p.includes(me)){const[u,v]=simGoals(p[0],p[1]);L.res[p[0]+'|'+p[1]]=[u,v];}
+    L.round++;
+    const pos=lgTable().findIndex(r=>r.t===me)+1;
+    if(L.round>=L.rounds.length){
+      const inPo=startPlayoffs();
+      text=inPo?`Serien är klar. ${nm} slutade ${pos}:a och är klara för semifinal!`:`Serien är klar. ${nm} slutade ${pos}:a och missade slutspelet. ${TEAMS[L.champ].name} vann finalen.`;
+    }else text=`${nm} ligger ${pos}:a i tabellen efter ${L.round} omgångar.`;
+  }else{
+    const w=my>op?me:(g.a===me?g.b:g.a),ot=M.period>PERIODS;
+    if(L.phase==='semi'){
+      const sm=L.po.semi.find(m=>m[0]===me||m[1]===me),other=L.po.semi.find(m=>m!==sm);
+      sm[2]=[x,y,ot];other[2]=simKO(other[0],other[1]);
+      const ow=other[2][0]>other[2][1]?other[0]:other[1];
+      if(w===me){L.po.final=[me,ow,null];L.phase='final';title='TILL FINAL!';text=`Final mot ${TEAMS[ow].name} väntar.`;gold=true;}
+      else{L.po.final=[w,ow,simKO(w,ow)];L.champ=L.po.final[2][0]>L.po.final[2][1]?w:ow;L.phase='done';title='UTSLAGNA';text=`Semifinalen tog slut. ${TEAMS[L.champ].name} vann finalen.`;}
+    }else{
+      L.po.final[2]=[x,y,ot];L.champ=w;L.phase='done';
+      if(w===me){save.lgTitles=(save.lgTitles||0)+1;title='MÄSTARE!';text=`${nm} vann finalen och är seriemästare!`;gold=true;}
+      else{title='SILVER';text=`${TEAMS[w].name} vann finalen. Ny säsong väntar!`;}
+    }
+    if(ot&&w===me)text='Avgjort i förlängningen! '+text;
+  }
+  persist();return{eyebrow,title,text,gold};
+}
+function badgeCanvas(id,w){const c=document.createElement('canvas');c.width=w*2;c.height=Math.round(w*2.3);drawBadge(c.getContext('2d'),id,w*.15,w*.05,w*1.7);return c;}
+function renderLen(){
+  document.querySelectorAll('.lenPick').forEach(el=>{
+    if(!el.children.length)PLENS.forEach(v=>{const b=document.createElement('button');b.type='button';b.className='diffBtn';b.dataset.len=v;b.textContent=`${v/60} min`;b.addEventListener('click',()=>{save.plen=v;persist();renderLen();});el.appendChild(b);});
+    [...el.children].forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.len===save.plen)));
+  });
+  const si=$('#setupInfo');if(si)si.textContent=`Match · 3 mot 3 · 3 perioder à ${save.plen/60} min`;
+}
+function openLeague(){
+  initAudio();game.mode='menu';
+  if(!save.league)newLeague();
+  const L=save.league,me=L.team,g=lgUserGame();
+  hideScreens();$('#league').hidden=false;syncControls();
+  $('#lgEyebrow').textContent=`Säsong ${L.season} · ${TEAMS[me].name}`+(me!==save.team?' (laget du startade serien med)':'');
+  $('#lgTitle').textContent=g?g.label:'Säsongen är klar';
+  const nx=$('#lgNext');nx.innerHTML='';
+  if(g){
+    const vs=document.createElement('div');vs.className='lgVs me';
+    [g.a,null,g.b].forEach(id=>{if(!id){const v=document.createElement('span');v.className='v';v.textContent='MOT';vs.appendChild(v);return;}
+      const d=document.createElement('div');d.className='tm'+(id===me?' mine':'');d.appendChild(badgeCanvas(id,26));d.appendChild(document.createTextNode(TEAMS[id].name));vs.appendChild(d);});
+    nx.appendChild(vs);
+    const p=document.createElement('p');p.textContent=L.phase==='serie'?'Seger 3 poäng · oavgjort 1 poäng':'Avgörs i förlängning med sudden death om det står lika';nx.appendChild(p);
+    const b=document.createElement('button');b.type='button';b.className='primary';b.textContent='Spela matchen';
+    b.addEventListener('click',()=>startMatch(g.a===me?g.b:g.a,{my:me,lg:true,po:L.phase!=='serie'}));nx.appendChild(b);
+  }else{
+    const vs=document.createElement('div');vs.className='lgVs';const d=document.createElement('div');d.className='tm mine';d.appendChild(badgeCanvas(L.champ,32));d.appendChild(document.createTextNode(TEAMS[L.champ].name+(L.champ===me?' – MÄSTARE!':' vann')));vs.appendChild(d);nx.appendChild(vs);
+    const b=document.createElement('button');b.type='button';b.className='primary';b.textContent='Starta ny säsong';b.addEventListener('click',()=>{newLeague();openLeague();});nx.appendChild(b);
+  }
+  const rows=lgTable();
+  $('#lgTable').innerHTML='<thead><tr><th>#</th><th>Lag</th><th>M</th><th>V</th><th>O</th><th>F</th><th>+/-</th><th>P</th></tr></thead><tbody>'+
+    rows.map((r,i)=>`<tr class="${r.t===me?'me':''}${i===3?' cut':''}"><td>${i+1}</td><td><span class="tnm"><span class="sw" style="background:${TEAMS[r.t].kit.shirt}"></span>${TEAMS[r.t].name}</span></td><td>${r.m}</td><td>${r.v}</td><td>${r.o}</td><td>${r.f}</td><td>${r.gf}–${r.ga}</td><td class="p">${r.p}</td></tr>`).join('')+'</tbody>';
+  const li=(a,b,sc,extra)=>`<li class="${a===me||b===me?'me':''}"><span class="a">${TEAMS[a].name}</span><span class="sc">${sc?sc[0]+'–'+sc[1]+(sc[2]?' fl':''):'–'}</span><span>${TEAMS[b].name}</span></li>`;
+  const po=$('#lgPlayoff');$('#lgPoWrap').hidden=!L.po;
+  if(L.po){po.innerHTML='<div class="lbl">Semifinaler</div><ul class="results">'+L.po.semi.map(m=>li(m[0],m[1],m[2])).join('')+'</ul>'+(L.po.final?'<div class="lbl">Final</div><ul class="results">'+li(L.po.final[0],L.po.final[1],L.po.final[2])+'</ul>':'');}
+  const ri=L.phase==='serie'?L.round-1:L.rounds.length-1;
+  $('#lgResWrap').hidden=ri<0;
+  if(ri>=0){$('#lgResHead').textContent=`Omgång ${ri+1}`;$('#lgResults').innerHTML=L.rounds[ri].map(p=>li(p[0],p[1],L.res[p[0]+'|'+p[1]])).join('');}
+  renderLen();
+  const nb=$('#bLgNew');nb.textContent='Ny säsong';nb.dataset.arm='';
+}
+$('#bLgNew').addEventListener('click',e=>{const b=e.currentTarget;if(b.dataset.arm){newLeague();openLeague();return;}b.dataset.arm='1';b.textContent='Tryck igen för att börja om';setTimeout(()=>{b.dataset.arm='';b.textContent='Ny säsong';},3000);});
+$('#bLgBack').addEventListener('click',openMenu);
+$('#bLeague').addEventListener('click',openLeague);
 
 /* ---------- Update loop ---------- */
 function update(dt){
@@ -1554,7 +1714,7 @@ $('#bMatch').addEventListener('click',openSetup);
 $('#bSetupBack').addEventListener('click',()=>{$('#setup').hidden=true;$('#menu').hidden=false;});
 $('#bCareer').addEventListener('click',()=>startSeries(false));
 $('#bTrain').addEventListener('click',()=>startSeries(true));
-$('#bNext').addEventListener('click',()=>{$('#end').hidden=true;if(game.last==='match')startMatch(M.tid[1]);else startSeries(false);});
+$('#bNext').addEventListener('click',()=>{$('#end').hidden=true;if(game.last==='match'){if(M.lg)openLeague();else startMatch(M.tid[1]);}else startSeries(false);});
 $('#bEndMenu').addEventListener('click',openMenu);
 $('#btnMenu').addEventListener('click',openMenu);
 $('#btnMute').addEventListener('click',()=>{initAudio();setMute(!muted);});
