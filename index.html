@@ -235,7 +235,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
             <li><b>Spaken</b> styr spelaren med den gula pilen. Uppåt är mot motståndarnas mål.</li>
             <li><b>SKJUT</b>: håll för att ladda, styr siktet i målet, släpp för skott.</li>
             <li><b>TACKLA</b> (samma knapp när du inte har bollen): peta bort bollen när du är nära.</li>
-            <li><b>PASSA</b> åt det håll du styr. Utan boll byter samma knapp till den spelare som är närmast bollen.</li>
+            <li><b>PASSA</b> går till spelaren med den blåa streckade ringen. Styr med spaken för att välja en annan. Passningen söker sig själv till lagkamraten. Utan boll byter samma knapp till den spelare som är närmast bollen.</li>
             <li><b>ZORRO</b>: lyft bollen på bladet. Svårare att tackla, och skottet blir exaktare.</li>
           </ul>
           <h3>Straffar</h3>
@@ -284,7 +284,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 <script>
 (()=>{
 'use strict';
-const APP_VERSION='2.3';
+const APP_VERSION='2.4';
 const $=s=>document.querySelector(s);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const lerp=(a,b,t)=>a+(b-a)*t;
@@ -774,7 +774,7 @@ function mFaceoff(){
   const spots=[[0,-1.1],[-4,-4.5],[4,-4.5]];
   M.sk.forEach((s,i)=>{const k=i%3,t=s.team;s.x=spots[k][0];s.z=spots[k][1]*(t?-1:1);s.vx=s.vz=0;s.fx=0;s.fz=t?-1:1;s.pickCD=0;s.stun=0;s.recvT=0;s.celebrate=0;s.zorro=false;s.tackleCD=0;});
   M.gk.forEach(G=>{G.x=0;G.z=G.g.z-G.g.dir*.6;G.state='set';G.down=0;G.lean=0;G.armUp=0;G.cool=0;});
-  const b=M.ball;Object.assign(b,{x:0,y:R,z:0,vx:0,vy:0,vz:0,owner:null,holder:null,shot:null,inNet:null,lastTouch:null});
+  const b=M.ball;Object.assign(b,{x:0,y:R,z:0,vx:0,vy:0,vz:0,owner:null,holder:null,shot:null,inNet:null,lastTouch:null,passTo:null});
   M.ctrl=M.user;M.possTeam=-1;M.passTarget=null;charging=false;charge=0;
   M.state='faceoff';M.stateT=1.5;
   msg={title:'TEKNING',sub:`Period ${M.period} · ${M.teams[0].name} ${M.score[0]}–${M.score[1]} ${M.teams[1].name}`,kind:'info',t:0,dur:1.4};
@@ -821,7 +821,7 @@ function autoSwitch(force){
 }
 function setOwner(s){
   const b=M.ball,prev=M.possTeam;
-  b.owner=s;b.shot=null;b.lastTouch=s;M.possTeam=s.team;s.dribble=0;s.recvT=0;
+  b.owner=s;b.shot=null;b.passTo=null;b.lastTouch=s;M.possTeam=s.team;s.dribble=0;s.recvT=0;
   if(s.team===0){if(M.ctrl!==s){M.ctrl=s;charging=false;charge=0;}M.passTarget=null;}
   else{s.zorro=false;if(prev!==1)autoSwitch(false);}
 }
@@ -831,7 +831,7 @@ function laneBlocked(ax,az,bx,bz,team){
   for(const o of M.sk){if(o.team===team)continue;const t=clamp(((o.x-ax)*dx+(o.z-az)*dz)/L,0,1);const px=ax+dx*t-o.x,pz=az+dz*t-o.z;if(px*px+pz*pz<.8*.8&&t>.1&&t<.95)n++;}
   return n;
 }
-function doPass(s,v){
+function pickPassTarget(s,v){
   const b=M.ball,ad=s.team?-1:1;
   let best=null,bs=-1e9;
   for(const m of M.sk){
@@ -842,13 +842,17 @@ function doPass(s,v){
     sc+=dz*ad*.15-Math.abs(d-7)*.12+Math.min(openness(m),4)*.8-laneBlocked(b.x,b.z,m.x,m.z,s.team)*4;
     if(sc>bs){bs=sc;best=m;}
   }
+  return best;
+}
+function doPass(s,v){
+  const b=M.ball,best=pickPassTarget(s,v);
   if(!best)return;
   const tx=best.x+best.vx*.35,tz=best.z+best.vz*.35;
   const dx=tx-b.x,dz=tz-b.z,d=Math.hypot(dx,dz)||1;
-  const err=gauss()*(s.team===0?.03:.03+(1-skillOf(s.team))*.07);
+  const err=s.team===0?0:gauss()*(.03+(1-skillOf(s.team))*.07);
   const ang=Math.atan2(dz,dx)+err,speed=clamp(7+d*.55,9,15);
   s.zorro=false;b.owner=null;b.vx=Math.cos(ang)*speed;b.vz=Math.sin(ang)*speed;b.vy=0;b.y=R;b.shot=null;b.lastTouch=s;
-  s.pickCD=.35;M.possTeam=-1;best.recvT=1.3;sfx.pass();
+  s.pickCD=.35;M.possTeam=-1;best.recvT=1.3;sfx.pass();b.passTo=best;b.passT=1.8;
   if(s.team===0){M.ctrl=best;M.passTarget=best;M.passT=1.4;}
 }
 function tryTackle(s){
@@ -873,7 +877,7 @@ function mShoot(s,tx,ty,power,over,extraSd){
   const X=tx+gauss()*sd,Y=Math.max(R,ty+gauss()*sd*.8+over*1.2);
   const speed=(fromZ?8:9)+17*p;
   const dx=X-b.x,dy=Y-b.y,dz=g.z-b.z,d=Math.hypot(dx,dy,dz)||1;
-  b.owner=null;b.vx=dx/d*speed;b.vy=dy/d*speed;b.vz=dz/d*speed;b.shot={team:s.team,zorro:fromZ};b.lastTouch=s;
+  b.owner=null;b.passTo=null;b.vx=dx/d*speed;b.vy=dy/d*speed;b.vz=dz/d*speed;b.shot={team:s.team,zorro:fromZ};b.lastTouch=s;
   s.pickCD=.45;s.swing=1;s.zorro=false;M.possTeam=-1;
   const G=M.gk[1-s.team];
   if(G.state!=='hold'){
@@ -911,7 +915,7 @@ function nearestOf(list,x,z){let best=null,bd=1e9;for(const s of list){const d=M
 /* --- AI --- */
 function mAI(s,dt){
   const b=M.ball,t=s.team,ad=t?-1:1,oppG=GOALS[1-t],ownG=GOALS[t],skl=skillOf(t);
-  const spd=4.2+skl*1.3;
+  const spd=(3.3+skl*1.4)*(.82+.18*DE());
   const mates=M.sk.filter(o=>o.team===t),opps=M.sk.filter(o=>o.team!==t);
   const carrier=b.owner,holder=b.holder;
   if(carrier===s)return aiCarrier(s,dt,spd,opps,oppG,ad,skl);
@@ -936,7 +940,7 @@ function mAI(s,dt){
     if(s===chaser){
       const gx=0-carrier.x,gz=ownG.z-carrier.z,gd=Math.hypot(gx,gz)||1;
       steer(s,carrier.x+gx/gd*.7,carrier.z+gz/gd*.7,spd*1.02,dt);
-      if(Math.hypot(b.x-s.x,b.z-s.z)<1.15&&Math.random()<dt*2.5)tryTackle(s);
+      if(Math.hypot(b.x-s.x,b.z-s.z)<1.15&&Math.random()<dt*2.5*(.45+.55*DE()))tryTackle(s);
       return;
     }
     const others=mates.filter(m=>m!==chaser).sort((a,c)=>Math.hypot(a.x-b.x,a.z-b.z)-Math.hypot(c.x-b.x,c.z-b.z));
@@ -1088,13 +1092,22 @@ function mBall(dt){
   }
   b.spin+=dt*sp(b)*4;
   if(b.shot&&sp(b)<5)b.shot=null;
+  if(b.passTo){
+    b.passT-=dt;const t=b.passTo;
+    if(b.passT<=0||b.owner||b.holder||b.inNet)b.passTo=null;
+    else if(t.team===0){
+      const v=sp(b),dx=t.x+t.fx*.4-b.x,dz=t.z+t.fz*.4-b.z,dd=Math.hypot(dx,dz)||1;
+      if(v>.5){const a0=Math.atan2(b.vz,b.vx),a1=Math.atan2(dz,dx);let da=a1-a0;while(da>Math.PI)da-=2*Math.PI;while(da<-Math.PI)da+=2*Math.PI;
+        const a=a0+clamp(da,-7*dt,7*dt),nv=Math.max(v,Math.min(8,dd*2));b.vx=Math.cos(a)*nv;b.vz=Math.sin(a)*nv;}
+    }
+  }
   // pickups
   if(M.state!=='live'||b.inNet||b.y>.45)return;
   if(inCrease(b.x,b.z,GOALS[0])||inCrease(b.x,b.z,GOALS[1]))return;
   let best=null,bd=9;
   for(const s of M.sk){
     if(s.pickCD>0||s.stun>0)continue;
-    const d=Math.hypot(b.x-s.x-s.fx*.35,b.z-s.z-s.fz*.35),reach=.62+(s===M.ctrl?.15:0)+(s.recvT>0?.1:0);
+    const d=Math.hypot(b.x-s.x-s.fx*.35,b.z-s.z-s.fz*.35);let reach=.62+(s===M.ctrl?.15:0)+(s.recvT>0?.1:0)+(b.passTo===s?.35:0);if(b.passTo&&b.passTo.team===0&&s.team===1)reach*=.55+.45*DE();
     if(d<reach&&d<bd){best=s;bd=d;}
   }
   if(best){
@@ -1476,6 +1489,7 @@ function mRender(){
   for(const G of M.gk)shadow(G.x,G.z,.55,.3);
   for(const s of M.sk)shadow(s.x,s.z,.3,.35);
   shadow(b.x,b.z,BALL_R*1.4,.4);
+  if(M.ctrl&&game.mode==='match'&&b.owner===M.ctrl&&!charging&&M.state==='live'){const t=pickPassTarget(M.ctrl,(()=>{const v=inputVec();return(v.x||v.y)?v:null;})());const p=t&&proj(t.x,0,t.z);if(p){ctx.save();ctx.strokeStyle='#5ab4e5';ctx.lineWidth=Math.max(2,.05*p.s);ctx.setLineDash([6,5]);ctx.beginPath();ctx.ellipse(p.x,p.y,.5*p.s,.5*p.s*.3,0,0,7);ctx.stroke();ctx.restore();}}
   if(M.ctrl&&game.mode==='match'){const p=proj(M.ctrl.x,0,M.ctrl.z);if(p){ctx.strokeStyle='#f6c400';ctx.lineWidth=Math.max(2,.05*p.s);ctx.beginPath();ctx.ellipse(p.x,p.y,.48*p.s,.48*p.s*.3,0,0,7);ctx.stroke();}}
   const list=[];
   for(const g of GOALS){list.push({z:g.z+g.dir*.5,f:()=>drawNetBack(g,g===GOALS[1]?netShake:0)});list.push({z:g.z,f:()=>drawGoalFrame(g)});}
