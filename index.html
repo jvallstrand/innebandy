@@ -276,7 +276,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 <script>
 (()=>{
 'use strict';
-const APP_VERSION='2.0';
+const APP_VERSION='2.1';
 const $=s=>document.querySelector(s);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const lerp=(a,b,t)=>a+(b-a)*t;
@@ -287,7 +287,7 @@ const BODY="'Barlow Semi Condensed','Arial Narrow',system-ui,sans-serif";
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ---------- Rink geometry (meters). Center line z=0, goal lines at z=±16.5, end boards at ±20 ---------- */
-const GOAL_Z=16.5, END_Z=20, HALF=10, POST=0.8, BAR=1.15, BALL_R=0.036, R=BALL_R;
+const GOAL_Z=16.5, END_Z=20, HALF=10, POST=1.0, BAR=1.4, GS=1.18, GX=1.38, BALL_R=0.036, R=BALL_R;
 const GOALS=[{z:-16.5,dir:-1},{z:16.5,dir:1}];
 const CR_F=3.35, CR_B=.65, CR_HW=2.5;
 function inCrease(x,z,g,m){m=m||0;const d=(z-g.z)*g.dir;return Math.abs(x)<CR_HW+m&&d>-CR_F-m&&d<CR_B+m;}
@@ -333,9 +333,9 @@ const myTeam=()=>TEAMS[save.team];
 
 /* ---------- Canvas & camera ---------- */
 const cv=$('#game'), ctx=cv.getContext('2d');
-let W=0,H=0,F=1,HZ=0,DPR=1,safeTop=0,safeBot=0;
+let W=0,H=0,F=1,HZ=0,DPR=1,safeTop=0,safeBot=0,PORT=false;
 function resize(){
-  DPR=Math.min(2,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;
+  DPR=Math.min(2,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;PORT=H>W*1.15;
   cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);ctx.setTransform(DPR,0,0,DPR,0,0);
   const cs=getComputedStyle($('#probe'));safeTop=parseFloat(cs.paddingTop)||0;safeBot=parseFloat(cs.paddingBottom)||0;
 }
@@ -514,13 +514,13 @@ function nextIdle(){P.x=0;P.z=0;P.vx=0;P.vz=0;P.zorro=false;B.mode='dribble';B.i
 /* ---------- Penalty-shot controls ---------- */
 function startCharge(){
   if(game.mode!=='play'||charging||(B.mode!=='dribble'&&B.mode!=='zorro'))return;
-  charging=true;charge=0;aim.x=clamp(-G.x*.4,-.5,.5);aim.y=B.mode==='zorro'?.3:.55;
+  charging=true;charge=0;aim.x=clamp(-G.x*.4,-.5,.5);aim.y=B.mode==='zorro'?.3:.7;
 }
 function doFint(){
   if(game.mode!=='play'||charging||P.fintT>0||B.mode!=='dribble')return;
   const v=inputVec();P.fintT=.45;P.fintSide=v.x?Math.sign(v.x):(Math.random()<.5?-1:1);sfx.fint();
   const chance=LV().bite*Math.pow(.5,G.fints);G.fints++;
-  if(Math.random()<chance){G.state='bite';G.biteT=.8;G.biteX=clamp(G.x+P.fintSide*.5,-1.1,1.1);G.biteDir=P.fintSide;toast={text:'Målvakten köpte finten!',t:0};}
+  if(Math.random()<chance){G.state='bite';G.biteT=.8;G.biteX=clamp(G.x+P.fintSide*.5,-GX,GX);G.biteDir=P.fintSide;toast={text:'Målvakten köpte finten!',t:0};}
   else toast={text:G.fints>1?'Han känner igen finten…':'Målvakten stod kvar',t:0};
 }
 function sZorro(){
@@ -543,7 +543,7 @@ function shoot(){
   G.slow=st==='zorro'||st==='lag';
   G.state='react';G.reactT=L.delay*(.85+Math.random()*.3)+(st==='bite'?.22+G.down*.15:0)+(st==='lag'?.1:0);
   const tG=Math.max(0,(G.z-B.z)/B.vz);
-  G.targetX=clamp(B.x+B.vx*tG+gauss()*L.read,-1.1,1.1);G.targetY=B.y+B.vy*tG;
+  G.targetX=clamp(B.x+B.vx*tG+gauss()*L.read,-GX,GX);G.targetY=B.y+B.vy*tG;
   lastShot={p,bit:st==='bite',zorro:fromZorro||st==='lag',ty,tx};
   game.mode='shot';charge=0;sfx.shot(p);
 }
@@ -568,7 +568,7 @@ function updatePlay(dt){
     P.vz+=(clamp((z?2.2:3)+v.y*(z?1.2:2.6),1.2,z?3.4:5.6)-P.vz)*Math.min(1,dt*2.5);
   }else{
     P.vx+=(0-P.vx)*Math.min(1,dt*5);P.vz+=(1.2-P.vz)*Math.min(1,dt*3);
-    aim.x=clamp(aim.x+v.x*2.4*dt,-1.05,1.05);aim.y=clamp(aim.y+v.y*2.0*dt,.04,1.5);
+    aim.x=clamp(aim.x+v.x*2.6*dt,-POST*1.3,POST*1.3);aim.y=clamp(aim.y+v.y*2.2*dt,.04,BAR*1.3);
     charge+=dt;
   }
   P.x=clamp(P.x+P.vx*dt,-HALF+.7,HALF-.7);P.z+=P.vz*dt;
@@ -582,7 +582,7 @@ function updateGoalie(dt){
   const L=LV();
   const close=clamp((B.z-6)/(13.15-6),0,1);
   if(G.state!=='react')G.z+=((16.15-close*.55)-G.z)*Math.min(1,dt*2);
-  const ideal=clamp(B.x*(GOAL_Z-G.z)/Math.max(.5,GOAL_Z-B.z),-1.1,1.1);
+  const ideal=clamp(B.x*(GOAL_Z-G.z)/Math.max(.5,GOAL_Z-B.z),-GX,GX);
   if(G.state==='set'){
     G.x+=(ideal-G.x)*Math.min(1,dt/L.tau);
     G.down+=(0-G.down)*Math.min(1,dt*3);G.lean+=(0-G.lean)*Math.min(1,dt*4);G.armUp+=(0-G.armUp)*Math.min(1,dt*4);
@@ -601,13 +601,13 @@ function updateGoalie(dt){
       const dx=G.targetX-G.x;G.x+=clamp(dx,-L.speed*dt,L.speed*dt);
       if(Math.abs(dx)>.22)G.lean=clamp(G.lean+Math.sign(dx)*L.lean*dt,-1,1);
       const dr=G.slow?3.5:10;
-      if(G.targetY<.5)G.down+=(1-G.down)*Math.min(1,dt*dr);else G.down+=(.25-G.down)*Math.min(1,dt*6);
-      if(G.targetY>.75)G.armUp=Math.min(1,G.armUp+dt*L.lean*1.4);
+      if(G.targetY<.5*GS)G.down+=(1-G.down)*Math.min(1,dt*dr);else G.down+=(.25-G.down)*Math.min(1,dt*6);
+      if(G.targetY>.75*GS)G.armUp=Math.min(1,G.armUp+dt*L.lean*1.4);
     }
   }
 }
 function covered(g,bx,by,r){
-  const rx=bx-g.x,d=g.down,ln=g.lean;const side=rx>=0?1:-1;const ext=side===Math.sign(ln)?Math.abs(ln):0;const ax=Math.abs(rx);
+  const rx=(bx-g.x)/GS,d=g.down,ln=g.lean;by/=GS;r/=GS;const side=rx>=0?1:-1;const ext=side===Math.sign(ln)?Math.abs(ln):0;const ax=Math.abs(rx);
   const k=1-d*.18-ext*.2;
   if(by<.42&&ax<.42+d*.3+ext*.55+r)return true;
   if(by<.95*k&&ax<.27+r)return true;
@@ -776,7 +776,7 @@ function updateMHud(force){
 function mPrimaryDown(){
   if(M.state!=='live')return;
   const c=M.ctrl,b=M.ball;
-  if(b.owner===c){charging=true;charge=0;const G=M.gk[1];aim.x=clamp(-G.x*.5,-.5,.5);aim.y=c.zorro?.3:.5;}
+  if(b.owner===c){charging=true;charge=0;const G=M.gk[1];aim.x=clamp(-G.x*.5,-.5,.5);aim.y=c.zorro?.3:.65;}
   else tryTackle(c);
 }
 function mPrimaryUp(){
@@ -867,14 +867,14 @@ function mShoot(s,tx,ty,power,over,extraSd){
     const wasUp=G.armUp>.5;
     G.state='react';G.react=1.1;G.slow=wasUp;G.reactT=G.prm.delay*(.85+Math.random()*.3)+(dist>12?-.05:0);
     const tG=Math.abs(b.vz)>.1?Math.max(0,(G.z-b.z)/b.vz):0;
-    G.targetX=clamp(b.x+b.vx*tG+gauss()*G.prm.read,-1.1,1.1);G.targetY=b.y+b.vy*tG;
+    G.targetX=clamp(b.x+b.vx*tG+gauss()*G.prm.read,-GX,GX);G.targetY=b.y+b.vy*tG;
   }
   sfx.shot(p);
 }
 function aiShoot(s){
   const G=M.gk[1-s.team];
   const side=Math.abs(G.x)>.12?-Math.sign(G.x):(Math.random()<.5?-1:1);
-  const tx=side*(.42+Math.random()*.3),ty=Math.random()<.5?.12+Math.random()*.3:.6+Math.random()*.45;
+  const tx=side*(.52+Math.random()*.38),ty=Math.random()<.5?.12+Math.random()*.38:.75+Math.random()*.55;
   mShoot(s,tx,ty,.6+Math.random()*.32,0,(1-skillOf(s.team))*.09);
 }
 function gkThrow(G){
@@ -968,7 +968,7 @@ function aiCarrier(s,dt,spd,opps,g,ad,skl){
 function userMove(s,dt){
   const v=inputVec(),b=M.ball,has=b.owner===s;
   if(charging&&has){
-    aim.x=clamp(aim.x+v.x*2.4*dt,-1.05,1.05);aim.y=clamp(aim.y+v.y*2.0*dt,.04,1.5);charge+=dt;
+    aim.x=clamp(aim.x+v.x*2.6*dt,-POST*1.3,POST*1.3);aim.y=clamp(aim.y+v.y*2.2*dt,.04,BAR*1.3);charge+=dt;
     s.vx+=(0-s.vx)*Math.min(1,dt*5);s.vz+=(1-s.vz)*Math.min(1,dt*5);s.fx=0;s.fz=1;return;
   }
   if(!v.x&&!v.y&&!has&&!b.holder&&(M.passTarget===s)){
@@ -994,8 +994,8 @@ function mGK(G,dt){
     else{
       const dx=G.targetX-G.x;G.x+=clamp(dx,-P_.speed*dt,P_.speed*dt);
       if(Math.abs(dx)>.22)G.lean=clamp(G.lean+Math.sign(dx)*P_.lean*dt,-1,1);
-      if(G.targetY<.5)G.down+=(1-G.down)*Math.min(1,dt*(G.slow?3.5:10));else G.down+=(.25-G.down)*Math.min(1,dt*6);
-      if(G.targetY>.75)G.armUp=Math.min(1,G.armUp+dt*P_.lean*1.4);
+      if(G.targetY<.5*GS)G.down+=(1-G.down)*Math.min(1,dt*(G.slow?3.5:10));else G.down+=(.25-G.down)*Math.min(1,dt*6);
+      if(G.targetY>.75*GS)G.armUp=Math.min(1,G.armUp+dt*P_.lean*1.4);
     }
     if(G.react<=0)G.state='set';
     return;
@@ -1008,7 +1008,7 @@ function mGK(G,dt){
     return;
   }
   const dzb=(b.z-g.z)*out;
-  const ix=dzb>.3?clamp(b.x*.6/dzb,-.85,.85):Math.sign(b.x||1)*.85;
+  const ix=dzb>.3?clamp(b.x*.6/dzb,-1.05,1.05):Math.sign(b.x||1)*1.05;
   const zorroUp=b.owner&&b.owner.team!==G.team&&b.owner.zorro&&dzb<10;
   G.x+=(ix-G.x)*Math.min(1,dt/P_.tau);G.z+=((g.z+out*.6)-G.z)*Math.min(1,dt*3);
   G.down+=(0-G.down)*Math.min(1,dt*3);G.lean+=(0-G.lean)*Math.min(1,dt*4);
@@ -1201,18 +1201,18 @@ function update(dt){
   let tz,tx,ty;
   if(isMatchView()){
     const b=M.ball;const fz=charging&&M.ctrl?M.ctrl.z:b.z;
-    tz=clamp(fz-8.5,-26,8);tx=clamp(b.x*.55,-5,5);ty=5.2;
-  }else if(game.mode==='menu'||game.mode==='end'){tz=game.mode==='end'?cam.z:-5.5;tx=Math.sin(time*.3)*.6;ty=2.6;}
-  else if(game.mode==='shot'||game.mode==='result'){tz=Math.min(P.z-4.6,GOAL_Z-6);tx=P.x*.7-.85;ty=2.9;}
-  else{tz=P.z-(charging?4.6:5.5);tx=P.x*.7-.85;ty=charging?3.1:2.9;}
+    tz=clamp(fz-(PORT?7:8.5),-26,8);tx=clamp(b.x*(PORT?.8:.55),-6.5,6.5);ty=PORT?4.4:5.2;
+  }else if(game.mode==='menu'||game.mode==='end'){tz=game.mode==='end'?cam.z:-5.5;tx=Math.sin(time*.3)*.6;ty=PORT?3.1:2.6;}
+  else if(game.mode==='shot'||game.mode==='result'){tz=Math.min(P.z-4.6,GOAL_Z-6);tx=P.x*.7-(PORT?.55:.85);ty=PORT?3.1:2.9;}
+  else{tz=P.z-(charging?4.6:5.5);tx=P.x*.7-(PORT?.55:.85);ty=PORT?3.1:(charging?3.1:2.9);}
   cam.z+=(tz-cam.z)*Math.min(1,dt*4);cam.x+=(tx-cam.x)*Math.min(1,dt*3);cam.y+=(ty-cam.y)*Math.min(1,dt*3);
   if(isTouch&&!$('#touch').hidden){bShoot.style.setProperty('--p',pw().toFixed(3));bShoot.style.setProperty('--pc',charge>1.6?'#ff4b4b':'#f6c400');}
 }
 
 /* ---------- Rendering ---------- */
 function setView(){
-  if(isMatchView()){F=Math.min(W*.85,H*1.0);HZ=H*.13;}
-  else{F=Math.min(W*1.05,H*1.1);HZ=H*.3;}
+  if(isMatchView()){F=PORT?H*.8:Math.min(W*.85,H*1.15);HZ=PORT?H*.2:H*.13;}
+  else{F=PORT?H*1.05:Math.min(W*1.05,H*1.25);HZ=PORT?H*.19:H*.27;}
 }
 function quad(pts,fill){ctx.beginPath();for(let i=0;i<pts.length;i++){const p=proj(pts[i][0],pts[i][1],pts[i][2]);if(!p)return;i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);}ctx.closePath();ctx.fillStyle=fill;ctx.fill();}
 function wline(a,b,w,color){
@@ -1277,7 +1277,7 @@ function drawNetBack(g,shakeAmt){
   const tl=[-POST,BAR,bz(BAR)],tr=[POST,BAR,bz(BAR)],bl=[-POST,0,bz(0)],br=[POST,0,bz(0)];
   quad([tl,tr,br,bl],'rgba(255,255,255,.06)');
   const nc='rgba(255,255,255,.42)';
-  for(let i=0;i<=10;i++){const x=-POST+i*.16;wline([x,BAR,bz(BAR)],[x,0,bz(0)],.008,nc);wline([x,BAR,g.z],[x,BAR,bz(BAR)],.008,nc);}
+  for(let i=0;i<=10;i++){const x=-POST+i*POST/5;wline([x,BAR,bz(BAR)],[x,0,bz(0)],.008,nc);wline([x,BAR,g.z],[x,BAR,bz(BAR)],.008,nc);}
   for(let j=0;j<=7;j++){const y=j*BAR/7;wline([-POST,y,bz(y)],[POST,y,bz(y)],.008,nc);for(const s of[-1,1])wline([s*POST,y,g.z],[s*POST,y,bz(y)],.008,nc);}
   for(const s of[-1,1])for(let i=1;i<4;i++){const t=i/4;wline([s*POST,BAR,lerp(g.z,bz(BAR),t)],[s*POST,0,lerp(g.z,bz(0),t)],.008,nc);}
   const red='#d81f2b';wline(bl,br,.04,red);wline([-POST,0,g.z],bl,.04,red);wline([POST,0,g.z],br,.04,red);
@@ -1289,7 +1289,7 @@ function drawGoalFrame(g){
 }
 function drawGoalie(g,c1,c2,back){
   const p=proj(g.x,0,g.z);if(!p)return;
-  ctx.save();ctx.translate(p.x,p.y);ctx.scale(p.s,p.s);
+  ctx.save();ctx.translate(p.x,p.y);ctx.scale(p.s*GS,p.s*GS);
   const d=g.down,ln=g.lean;ctx.translate(ln*.25,0);ctx.rotate(ln*.95);
   const k=1-d*.18,dark='#141821';
   ctx.lineJoin='round';
