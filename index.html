@@ -284,7 +284,7 @@ button:focus-visible,input:focus-visible,summary:focus-visible{outline:3px solid
 <script>
 (()=>{
 'use strict';
-const APP_VERSION='2.2';
+const APP_VERSION='2.3';
 const $=s=>document.querySelector(s);
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const lerp=(a,b,t)=>a+(b-a)*t;
@@ -295,7 +295,7 @@ const BODY="'Barlow Semi Condensed','Arial Narrow',system-ui,sans-serif";
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /* ---------- Rink geometry (meters). Center line z=0, goal lines at z=±16.5, end boards at ±20 ---------- */
-const GOAL_Z=16.5, END_Z=20, HALF=10, POST=1.0, BAR=1.4, GS=1.18, GX=1.38, BALL_R=0.036, R=BALL_R;
+const GOAL_Z=16.5, END_Z=20, HALF=10, POST=1.25, BAR=1.6, GS=1.18, GX=1.55, BALL_R=0.036, R=BALL_R;
 const GOALS=[{z:-16.5,dir:-1},{z:16.5,dir:1}];
 const CR_F=3.35, CR_B=.65, CR_HW=2.5;
 function inCrease(x,z,g,m){m=m||0;const d=(z-g.z)*g.dir;return Math.abs(x)<CR_HW+m&&d>-CR_F-m&&d<CR_B+m;}
@@ -364,7 +364,7 @@ let msg=null,toast=null,particles=[],lastShot=null;
 const DIFFS={latt:{e:0,label:'Lätt'},medel:{e:.5,label:'Medel'},svar:{e:1,label:'Svår'}};
 const DE=()=>(DIFFS[save.diff]||DIFFS.medel).e;
 const aimMul=()=>.4+.6*DE();          // shot spread for the player
-const gkSize=()=>GS*(.86+.14*DE());    // opposing keeper size
+const gkSize=()=>GS*(.8+.2*DE());    // opposing keeper size
 function LV(){const L=LEVELS[game.level],e=DE(),k=1-e;
   return Object.assign({},L,{delay:L.delay+k*.13,speed:L.speed*(.6+.4*e),lean:L.lean*(.65+.35*e),read:L.read+k*.14,tau:L.tau*(1+k*.6),bite:Math.min(.95,L.bite+k*.25),lag:L.lag+k*.25});}
 const pw=()=>Math.min(1,charge/.6);
@@ -887,7 +887,7 @@ function mShoot(s,tx,ty,power,over,extraSd){
 function aiShoot(s){
   const G=M.gk[1-s.team];
   const side=Math.abs(G.x)>.12?-Math.sign(G.x):(Math.random()<.5?-1:1);
-  const tx=side*(.52+Math.random()*.38),ty=Math.random()<.5?.12+Math.random()*.38:.75+Math.random()*.55;
+  const tx=side*(.65+Math.random()*.48),ty=Math.random()<.5?.12+Math.random()*.42:.85+Math.random()*.6;
   mShoot(s,tx,ty,.6+Math.random()*.32,0,(1-skillOf(s.team))*.09);
 }
 function gkThrow(G){
@@ -1021,7 +1021,7 @@ function mGK(G,dt){
     return;
   }
   const dzb=(b.z-g.z)*out;
-  const ix=dzb>.3?clamp(b.x*.6/dzb,-1.05,1.05):Math.sign(b.x||1)*1.05;
+  const ix=dzb>.3?clamp(b.x*.6/dzb,-1.2,1.2):Math.sign(b.x||1)*1.2;
   const zorroUp=b.owner&&b.owner.team!==G.team&&b.owner.zorro&&dzb<10;
   G.x+=(ix-G.x)*Math.min(1,dt/P_.tau);G.z+=((g.z+out*.6)-G.z)*Math.min(1,dt*3);
   G.down+=(0-G.down)*Math.min(1,dt*3);G.lean+=(0-G.lean)*Math.min(1,dt*4);
@@ -1214,7 +1214,7 @@ function update(dt){
   let tz,tx,ty;
   if(isMatchView()){
     const b=M.ball;const fz=charging&&M.ctrl?M.ctrl.z:b.z;
-    tz=clamp(fz-(PORT?6.5:9.5),-25,8);tx=clamp(b.x*(PORT?.7:.5),-6,6);ty=PORT?7:6.2;
+    tz=clamp(fz-(PORT?10:10),-28,6);tx=0;ty=PORT?14:6.5;
   }else if(game.mode==='menu'||game.mode==='end'){tz=game.mode==='end'?cam.z:-5.5;tx=Math.sin(time*.3)*.6;ty=PORT?3.1:2.6;}
   else if(game.mode==='shot'||game.mode==='result'){tz=Math.min(P.z-4.6,GOAL_Z-6);tx=P.x*.7-(PORT?.55:.85);ty=PORT?3.1:2.9;}
   else{tz=P.z-(charging?4.6:5.5);tx=P.x*.7-(PORT?.55:.85);ty=PORT?3.1:(charging?3.1:2.9);}
@@ -1224,7 +1224,7 @@ function update(dt){
 
 /* ---------- Rendering ---------- */
 function setView(){
-  if(isMatchView()){F=PORT?H*.5:Math.min(W*.7,H*.95);HZ=PORT?H*.13:H*.12;}
+  if(isMatchView()){F=PORT?W*.56:W*.48;HZ=PORT?H*.07:-H*.06;}
   else{F=PORT?H*1.05:Math.min(W*1.05,H*1.25);HZ=PORT?H*.19:H*.27;}
 }
 function quad(pts,fill){ctx.beginPath();for(let i=0;i<pts.length;i++){const p=proj(pts[i][0],pts[i][1],pts[i][2]);if(!p)return;i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y);}ctx.closePath();ctx.fillStyle=fill;ctx.fill();}
@@ -1261,7 +1261,7 @@ function drawFloor(){
   for(const gl of GOALS){
     const f=gl.z-gl.dir*CR_F,bk=gl.z+gl.dir*CR_B,k0=gl.z-gl.dir*1;
     wline([-CR_HW,0,f],[CR_HW,0,f],lw,wc);wline([-CR_HW,0,f],[-CR_HW,0,bk],lw,wc);wline([CR_HW,0,f],[CR_HW,0,bk],lw,wc);wline([-CR_HW,0,bk],[CR_HW,0,bk],lw,wc);
-    wline([-1.25,0,k0],[1.25,0,k0],lw,wc);wline([-1.25,0,k0],[-1.25,0,gl.z+gl.dir*.5],lw,wc);wline([1.25,0,k0],[1.25,0,gl.z+gl.dir*.5],lw,wc);
+    wline([-1.6,0,k0],[1.6,0,k0],lw,wc);wline([-1.6,0,k0],[-1.6,0,gl.z+gl.dir*.5],lw,wc);wline([1.6,0,k0],[1.6,0,gl.z+gl.dir*.5],lw,wc);
     wline([-POST,0,gl.z],[POST,0,gl.z],lw,wc);
   }
   wline([-HALF,0,0],[HALF,0,0],.06,wc);

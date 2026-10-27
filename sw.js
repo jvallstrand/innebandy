@@ -1,4 +1,4 @@
-const CACHE = 'innebandy-v4';
+const CACHE = 'innebandy-v5';
 const FILES = ['./', './index.html'];
 const CDN = /(fonts\.googleapis\.com|fonts\.gstatic\.com|cdnjs\.cloudflare\.com|cdn\.jsdelivr\.net|unpkg\.com)$/;
 self.addEventListener('install', e => {
